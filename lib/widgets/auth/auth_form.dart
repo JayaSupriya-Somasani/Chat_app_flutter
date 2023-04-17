@@ -1,10 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../pickers/user_image_picker.dart';
 
 class AuthForm extends StatefulWidget {
   final void Function(String username, String password, String email,
-      bool isLogin, BuildContext ctx) submitForm;
+      File image, bool isLogin, BuildContext ctx) submitForm;
   final bool _isLoading;
 
   AuthForm(this.submitForm, this._isLoading);
@@ -20,15 +22,28 @@ class _AuthFormState extends State<AuthForm> {
   var _userName = '';
   var _password = '';
   var _emailAddress = '';
+  File? _userImageFile;
+
+  void _pickedImage(File image) {
+    _userImageFile = image;
+  }
 
   void _trySubmit() {
     final isValid = _formKey.currentState?.validate();
     FocusScope.of(context).unfocus();
 
+    if (_userImageFile == null && !_isLogin) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text("Please pick an image"),
+        backgroundColor: Theme.of(context).errorColor,
+      ));
+      return;
+    }
+
     if (isValid!) {
       _formKey.currentState?.save();
       widget.submitForm(_userName.trim(), _password.trim(),
-          _emailAddress.trim(), _isLogin, context);
+          _emailAddress.trim(), _userImageFile ?? File(""), _isLogin, context);
     }
   }
 
@@ -45,7 +60,7 @@ class _AuthFormState extends State<AuthForm> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  UserImagePicker(),
+                  if (!_isLogin) UserImagePicker(_pickedImage),
                   TextFormField(
                     key: const ValueKey('email'),
                     keyboardType: TextInputType.emailAddress,
@@ -99,17 +114,18 @@ class _AuthFormState extends State<AuthForm> {
                         child: Text(_isLogin ? "Login" : "SignUp")),
                   if (!widget._isLoading)
                     TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _isLogin = !_isLogin;
-                        });
-                      },
-                      child: Text(
-                        _isLogin
-                            ? "Create new account"
-                            : "I've already an account",
-                        style: TextStyle(color: Theme.of(context).primaryColor),
-                      ))
+                        onPressed: () {
+                          setState(() {
+                            _isLogin = !_isLogin;
+                          });
+                        },
+                        child: Text(
+                          _isLogin
+                              ? "Create new account"
+                              : "I've already an account",
+                          style:
+                              TextStyle(color: Theme.of(context).primaryColor),
+                        ))
                 ],
               ),
             ),

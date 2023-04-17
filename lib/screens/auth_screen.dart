@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:chat_app/widgets/auth/auth_form.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,11 +19,11 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isLoading = false;
 
   void _submitAuthForm(String username, String password, String email,
-      bool isLogin, BuildContext ctx) async {
+      File image, bool isLogin, BuildContext ctx) async {
     UserCredential authResult;
     try {
       setState(() {
-        _isLoading=true;
+        _isLoading = true;
       });
       if (isLogin) {
         authResult = await _auth.signInWithEmailAndPassword(
@@ -28,11 +31,22 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         authResult = await _auth.createUserWithEmailAndPassword(
             email: email, password: password);
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('user_image')
+            .child((authResult.user?.uid).toString() + '.jpg');
+        await ref.putFile(image);
+
+        final url = ref.getDownloadURL();
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(authResult.user?.uid)
+            .set({
+          'uname': username, 'email': email,
+          // 'imageUrl': url,
+        });
       }
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(authResult.user?.uid)
-          .set({'username': username, 'email': email});
     } on PlatformException catch (error) {
       var message = "An error occurred, please check your credentials";
       if (error.message != null) {
@@ -45,7 +59,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
       setState(() {
-        _isLoading=false;
+        _isLoading = false;
       });
     } catch (error) {
       ScaffoldMessenger.of(ctx).showSnackBar(
@@ -56,7 +70,7 @@ class _AuthScreenState extends State<AuthScreen> {
       );
       print(error);
       setState(() {
-        _isLoading=false;
+        _isLoading = false;
       });
     }
   }
@@ -65,6 +79,6 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: Theme.of(context).primaryColor,
-        body: AuthForm(_submitAuthForm,_isLoading));
+        body: AuthForm(_submitAuthForm, _isLoading));
   }
 }
